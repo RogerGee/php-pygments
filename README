@@ -1,0 +1,10 @@
+php-pygments - v0.0.0
+--------------------------------------------------------------------------------
+This project provides a PHP extension that wraps the pygments Python library. It
+uses libpython to load an interpreter alongside the PHP process.
+
+Primary author:
+
+    Roger Gee <rpg11a@acu.edu>
+
+--------------------------------------------------------------------------------
