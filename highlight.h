@@ -23,9 +23,13 @@ struct pygments_context
 {
     /* The pygments module */
     PyObject* module_pygments;
+    PyObject* func_highlight;
 
     /* The pygments.lexers module */
     PyObject* module_lexers;
+    PyObject* func_get_lexer_by_name;
+    PyObject* func_guess_lexer_for_filename;
+    PyObject* func_guess_lexer;
 
     /* A pygments.formatters.HtmlFormatter instance */
     PyObject* formatter;
@@ -87,6 +91,38 @@ struct context_options
     const char* pre_css_styles;
 };
 
+/*
+ * lexer_options
+ *
+ * Options to customize the lexer used to produce syntax-highlighted html in a
+ * call to highlight().
+ */
+
+struct lexer_options
+{
+    /* The name of the lexer to use. If set, then this will force Pygments to
+     * use this lexer.
+     */
+    const char* preferred_lexer;
+
+    /* The filename to use when guessing the lexer. */
+    const char* filename;
+};
+
+/*
+ * highlight_result
+ *
+ * Abstracts the PyObject string that represents the result of calling
+ * pygments.highlight().
+ */
+
+struct highlight_result
+{
+    const char* html;
+
+    PyObject* _pyobj;
+};
+
 /* Creates a new pygments context for use by the PHP extension. */
 int pygments_context_init(struct pygments_context* ctx);
 
@@ -94,7 +130,8 @@ int pygments_context_init(struct pygments_context* ctx);
 int pygments_context_close(struct pygments_context* ctx);
 
 /* Assigns the specified options to the context's formatter instance. */
-int pygments_context_assign_options(struct pygments_context* ctx,const struct context_options* opts);
+int pygments_context_assign_options(struct pygments_context* ctx,
+    const struct context_options* opts);
 
 /* Resets the context's formatter options to defaults. */
 int pygments_context_set_default_options(struct pygments_context* ctx);
@@ -102,6 +139,9 @@ int pygments_context_set_default_options(struct pygments_context* ctx);
 /* This is the core function that wraps the calls into the Pygments library for
  * syntax highlighting.
  */
-const char* highlight(const struct pygments_context* ctx,const char* code);
+struct highlight_result* highlight(const struct pygments_context* ctx,const char* code,
+    const struct lexer_options* opts);
+
+void highlight_result_free(struct highlight_result* result);
 
 #endif
