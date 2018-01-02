@@ -9,5 +9,6 @@ if test $PHP_PYGMENTS != "no"; then
 
     PHP_ADD_LIBRARY(python2.7,1,PYGMENTS_SHARED_LIBADD)
     PHP_SUBST(PYGMENTS_SHARED_LIBADD)
-    PHP_NEW_EXTENSION(pygments,pygments.c,$ext_shared)
+    PHP_NEW_EXTENSION(pygments,pygments.c highlight.c,$ext_shared)
 fi
+
