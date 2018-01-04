@@ -160,6 +160,8 @@ int pygments_context_init(struct pygments_context* ctx)
     Py_DECREF(formatters_module);
     Py_DECREF(HtmlFormatter_class);
 
+    pygments_context_set_default_options(ctx);
+
     return 0;
 }
 
