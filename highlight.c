@@ -8,6 +8,21 @@
 
 #include "highlight.h"
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
+#define NULL2EMPTY(val) (val == NULL ? "" : val)
+
+static void make_default_options(struct context_options* opts)
+{
+    memset(opts,0,sizeof(struct context_options));
+    opts->linenostart = 1;
+    opts->lineanchors = "";
+    opts->classprefix = "";
+    opts->cssclass = PHP_PYGMENTS_DEFAULT_CSSCLASS;
+    opts->cssstyles = "";
+    opts->prestyles = "";
+}
 
 static PyObject* lookup_lexer(const struct pygments_context* ctx,
     PyObject* pycode,const struct lexer_options* opts)
@@ -59,6 +74,108 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     }
 
     return lexer;
+}
+
+static int zval_get_bool(zval* zv,const char* errctx,const char* optname)
+{
+    if (Z_TYPE_P(zv) == IS_BOOL) {
+        return Z_BVAL_P(zv);
+    }
+
+    if (Z_TYPE_P(zv) == IS_LONG) {
+        return Z_LVAL_P(zv) ? 1 : 0;
+    }
+
+    if (Z_TYPE_P(zv) == IS_STRING) {
+        const char* str = Z_STRVAL_P(zv);
+        if (strcasecmp(str,"false") == 0) {
+            return 0;
+        }
+        if (strcasecmp(str,"true") == 0) {
+            return 1;
+        }
+    }
+
+    php_error(E_ERROR,"%s: option '%s' must be a boolean",errctx,optname);
+}
+
+static int zval_get_int(zval* zv,const char* errctx,const char* optname)
+{
+    if (Z_TYPE_P(zv) == IS_LONG) {
+        return Z_LVAL_P(zv);
+    }
+
+    if (Z_TYPE_P(zv) == IS_BOOL) {
+        return Z_BVAL_P(zv) ? 1 : 0;
+    }
+
+    long val;
+    zval tmp = *zv;
+    zval_copy_ctor(&tmp);
+    convert_to_long(&tmp);
+    val = Z_LVAL(tmp);
+    zval_dtor(&tmp);
+
+    if (strcmp(Z_STRVAL_P(zv),"0") != 0 && val != 0) {
+        php_error(E_ERROR,"%s: option '%s' must be an integer",errctx,optname);
+    }
+
+    return (int)val;
+}
+
+static const char* zval_get_string(zval* zv,const char* errctx,const char* optname)
+{
+    if (Z_TYPE_P(zv) == IS_NULL) {
+        return NULL;
+    }
+
+    if (Z_TYPE_P(zv) == IS_STRING) {
+        return Z_STRVAL_P(zv);
+    }
+
+    php_error(E_ERROR,"%s: option '%s' must be a string",errctx,optname);
+}
+
+static inline int set_python_attribute_bool(PyObject* inst,const char* attr,int value)
+{
+    return PyObject_SetAttrString(inst,attr,value ? Py_True : Py_False);
+}
+
+static int set_python_attribute_int(PyObject* inst,const char* attr,int value)
+{
+    int result;
+    PyObject* num;
+
+    num = PyInt_FromLong((long)value);
+    if (num == NULL) {
+        return -1;
+    }
+
+    result = PyObject_SetAttrString(inst,attr,num);
+    Py_DECREF(num);
+
+    return result;
+}
+
+static int set_python_attribute_string(PyObject* inst,const char* attr,const char* value)
+{
+    int result;
+    PyObject* str;
+
+    str = PyString_FromString(value);
+    if (str == NULL) {
+        return -1;
+    }
+
+    result = PyObject_SetAttrString(inst,attr,str);
+    Py_DECREF(str);
+
+    return result;
+}
+
+static inline int set_python_attribute_none(PyObject* inst,const char* attr,int delattr)
+{
+    return delattr ? PyObject_DelAttrString(inst,attr) : PyObject_SetAttrString(inst,attr,Py_None);
 }
 
 int pygments_context_init(struct pygments_context* ctx)
@@ -141,7 +258,8 @@ int pygments_context_init(struct pygments_context* ctx)
         return -1;
     }
 
-    ctx->func_guess_lexer_for_filename = PyObject_GetAttrString(ctx->module_lexers,"guess_lexer_for_filename");
+    ctx->func_guess_lexer_for_filename = PyObject_GetAttrString(ctx->module_lexers,
+        "guess_lexer_for_filename");
     if (ctx->func_guess_lexer_for_filename == NULL) {
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
@@ -205,19 +323,92 @@ int pygments_context_close(struct pygments_context* ctx)
     return 0;
 }
 
+void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+    const char* errctx)
+{
+    zval** zvp;
+    HashTable* ht;
+
+    ht = Z_ARRVAL_P(zfrom);
+    make_default_options(dst);
+
+    if (zend_hash_find(ht,"linenos",sizeof("linenos"),(void**)&zvp) != FAILURE) {
+        dst->linenos = zval_get_bool(*zvp,errctx,"linenos");
+    }
+    if (zend_hash_find(ht,"noclasses",sizeof("noclasses"),(void**)&zvp) != FAILURE) {
+        dst->noclasses = zval_get_bool(*zvp,errctx,"noclasses");
+    }
+
+    if (zend_hash_find(ht,"linenostart",sizeof("linenostart"),(void**)&zvp) != FAILURE) {
+        dst->linenostart = zval_get_int(*zvp,errctx,"linenostart");
+    }
+
+    if (zend_hash_find(ht,"lineanchors",sizeof("lineanchors"),(void**)&zvp) != FAILURE) {
+        dst->lineanchors = NULL2EMPTY( zval_get_string(*zvp,errctx,"lineanchors") );
+    }
+    if (zend_hash_find(ht,"classprefix",sizeof("classprefix"),(void**)&zvp) != FAILURE) {
+        dst->classprefix = NULL2EMPTY( zval_get_string(*zvp,errctx,"classprefix") );
+    }
+    if (zend_hash_find(ht,"cssclass",sizeof("cssclass"),(void**)&zvp) != FAILURE) {
+        dst->cssclass = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssclass") );
+    }
+    if (zend_hash_find(ht,"cssstyles",sizeof("cssstyles"),(void**)&zvp) != FAILURE) {
+        dst->cssstyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssstyles") );
+    }
+    if (zend_hash_find(ht,"prestyles",sizeof("prestyles"),(void**)&zvp) != FAILURE) {
+        dst->prestyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"prestyles") );
+    }
+}
+
 int pygments_context_assign_options(struct pygments_context* ctx,
     const struct context_options* opts)
 {
-    /* TODO */
+    set_python_attribute_bool(ctx->formatter,"linenos",opts->linenos);
+    set_python_attribute_int(ctx->formatter,"linenostart",opts->linenostart);
+    set_python_attribute_bool(ctx->formatter,"noclasses",opts->noclasses);
+    if (opts->lineanchors != NULL) {
+        set_python_attribute_string(ctx->formatter,"lineanchors",opts->lineanchors);
+    }
+    else {
+        set_python_attribute_none(ctx->formatter,"lineanchors",1);
+    }
 
-    return -1;
+    if (opts->classprefix != NULL) {
+        set_python_attribute_string(ctx->formatter,"classprefix",opts->classprefix);
+    }
+    else {
+        set_python_attribute_none(ctx->formatter,"classprefix",1);
+    }
+
+    if (opts->cssclass != NULL) {
+        set_python_attribute_string(ctx->formatter,"cssclass",opts->cssclass);
+    }
+    else {
+        set_python_attribute_none(ctx->formatter,"cssclass",1);
+    }
+
+    if (opts->cssstyles != NULL) {
+        set_python_attribute_string(ctx->formatter,"cssstyles",opts->cssstyles);
+    }
+    else {
+        set_python_attribute_none(ctx->formatter,"cssstyles",1);
+    }
+
+    if (opts->prestyles != NULL) {
+        set_python_attribute_string(ctx->formatter,"prestyles",opts->prestyles);
+    }
+    else {
+        set_python_attribute_none(ctx->formatter,"prestyles",1);
+    }
+
+    return 0;
 }
 
 int pygments_context_set_default_options(struct pygments_context* ctx)
 {
-    /* TODO */
-
-    return -1;
+    struct context_options opts;
+    make_default_options(&opts);
+    return pygments_context_assign_options(ctx,&opts);
 }
 
 struct highlight_result* highlight(const struct pygments_context* ctx,const char* code,
@@ -254,6 +445,10 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     Py_DECREF(lexer);
     Py_DECREF(pycode);
     if (result->_pyobj == NULL) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+        }
+
         free(result);
         return NULL;
     }

@@ -10,6 +10,9 @@
 #define HIGHLIGHT_H
 
 #include <Python.h>
+#include <php.h>
+
+#define PHP_PYGMENTS_DEFAULT_CSSCLASS "php-pygments"
 
 /*
  * pygments_context
@@ -45,50 +48,48 @@ struct pygments_context
 struct context_options
 {
     /* If non-zero, then the HTML formatter will insert line number elements
-     * into the output. [HtmlFormatter.linenos]
+     * into the output.
      */
-    int line_numbers;
+    int linenos;
 
     /* If line_numbers is non-zero, then this specifies the first line number
-     * for the output region. [HtmlFormatter.linenostart]
+     * for the output region.
      */
-    int line_start;
+    int linenostart;
 
-    /* If non-NULL, then the HTML formatter will produce anchor attributes for
-     * each code line. Each anchor will contain the specified prefix
-     * string. [HtmlFormatter.lineanchors]
+    /* If non-empty, then the HTML formatter will produce anchor attributes for
+     * each code line. Each anchor will contain the specified prefix string.
      */
-    const char* line_anchor_prefix;
+    const char* lineanchors;
 
     /* If non-zero, then the HTML formatter will produce inline style
-     * definitions. [HtmlFormatter.noclasses]
+     * definitions.
      */
-    int inline_styles;
+    int noclasses;
 
     /*
-     * If non-NULL, then the HTML formatter will include the following prefix
+     * If non-empty, then the HTML formatter will include the following prefix
      * string for each CSS class it uses.
      */
-    const char* css_prefix;
+    const char* classprefix;
 
     /*
-     * If non-NULL, then the HTML formatter will use the specified class name
-     * for the outer <div> element. Default is set to php-pygments.
-     * [HtmlFormatter.cssclass]
+     * If non-empty, then the HTML formatter will use the specified class name
+     * for the outer <div> element. Default is set to PHP_PYGMENTS_DEFAULT_CSSCLASS.
      */
-    const char* div_css_class;
+    const char* cssclass;
 
     /*
-     * If non-NULL, then the HTML formatter will use the specified style string
-     * for the outer div element. [HtmlFormatter.cssstyles]
+     * If non-empty, then the HTML formatter will use the specified style string
+     * for the outer div element.
      */
-    const char* div_css_styles;
+    const char* cssstyles;
 
     /*
-     * If non-NULL, then the HTML formatter will use the specified style string
-     * for the outer <pre> element. [HtmlFormatter.prestyles]
+     * If non-empty, then the HTML formatter will use the specified style string
+     * for the outer <pre> element.
      */
-    const char* pre_css_styles;
+    const char* prestyles;
 };
 
 /*
@@ -129,6 +130,12 @@ int pygments_context_init(struct pygments_context* ctx);
 /* Frees the context's members. The context cannot be used after this call. */
 int pygments_context_close(struct pygments_context* ctx);
 
+/* Parse the context options from the specified zval. An E_ERROR will be issued
+ * if parsing fails.
+ */
+void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+    const char* errctx);
+
 /* Assigns the specified options to the context's formatter instance. */
 int pygments_context_assign_options(struct pygments_context* ctx,
     const struct context_options* opts);
@@ -142,6 +149,7 @@ int pygments_context_set_default_options(struct pygments_context* ctx);
 struct highlight_result* highlight(const struct pygments_context* ctx,const char* code,
     const struct lexer_options* opts);
 
+/* Frees the result of a call to highlight(). */
 void highlight_result_free(struct highlight_result* result);
 
 #endif

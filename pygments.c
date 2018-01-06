@@ -17,10 +17,12 @@ static PHP_RSHUTDOWN_FUNCTION(pygments);
 
 /* PHP userspace functions */
 static PHP_FUNCTION(pygments_highlight);
+static PHP_FUNCTION(pygments_set_options);
 
 /* Function entries */
 static zend_function_entry php_pygments_functions[] = {
     PHP_FE(pygments_highlight,NULL)
+    PHP_FE(pygments_set_options,NULL)
     {NULL, NULL, NULL}
 };
 
@@ -133,17 +135,30 @@ PHP_RSHUTDOWN_FUNCTION(pygments)
 
 /* Implementation of userspace functions */
 
+/* {{{ proto string pygments_highlight(string code[, string lexer, string filename])
+   Syntax-highlights the specified code, applying any specified options */
 PHP_FUNCTION(pygments_highlight)
 {
     char* code;
     int code_len;
+    char* preferredLexer = NULL;
+    int preferredLexer_len = 0;
+    char* filename = NULL;
+    int filename_len = 0;
+    struct lexer_options lxopts;
     struct highlight_result* result;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(),"s",&code,&code_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(),"s|s!s!",&code,&code_len,
+            &preferredLexer,&preferredLexer_len,&filename,&filename_len) == FAILURE)
+    {
         return;
     }
 
-    result = highlight(&PYGMENTS_G(highlighter),code,NULL);
+    /* Assign lexer options. May be NULL if not provided by the user. */
+    lxopts.preferred_lexer = preferredLexer;
+    lxopts.filename = filename;
+
+    result = highlight(&PYGMENTS_G(highlighter),code,&lxopts);
 
     if (result == NULL) {
         RETURN_FALSE;
@@ -154,3 +169,21 @@ PHP_FUNCTION(pygments_highlight)
     RETVAL_STRING(result->html,1);
     highlight_result_free(result);
 }
+/* }}} */
+
+/* {{{ proto void pygments_set_options(array options)
+   Sets the formatter options to the global pygments context */
+PHP_FUNCTION(pygments_set_options)
+{
+    zval* zopts;
+    struct pygments_context* ctx;
+    struct context_options ctxopts;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(),"a",&zopts) == FAILURE) {
+        return;
+    }
+
+    pygments_context_options_parse(&ctxopts,zopts,"pygments_highlight");
+    pygments_context_assign_options(&PYGMENTS_G(highlighter),&ctxopts);
+}
+/* }}} */
