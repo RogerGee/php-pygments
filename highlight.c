@@ -57,7 +57,17 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
         lexer = PyObject_CallObject(ctx->func_guess_lexer_for_filename,args);
         Py_DECREF(args);
         if (lexer == NULL) {
-            return NULL;
+            /* Fall back on guess_lexer if not found by filename. */
+            args = Py_BuildValue("(O)",pycode);
+            if (args == NULL) {
+                return NULL;
+            }
+
+            lexer = PyObject_CallObject(ctx->func_guess_lexer,args);
+            Py_DECREF(args);
+            if (lexer == NULL) {
+                return NULL;
+            }
         }
     }
     else {
@@ -419,21 +429,34 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     PyObject* args;
     struct highlight_result* result;
 
+    /* Make sure the context is properly initialized. */
+    if (ctx->func_highlight == NULL) {
+        return NULL;
+    }
+
+    /* Allocate result structure. */
     result = malloc(sizeof(struct highlight_result));
     if (result == NULL) {
         return NULL;
     }
+    memset(result,0,sizeof(struct highlight_result));
 
+    /* Convert source code string to Python string. */
     pycode = PyString_FromString(code);
     if (pycode == NULL) {
         free(result);
         return NULL;
     }
 
+    /* Get a lexer suitable for the operation. */
+
     lexer = lookup_lexer(ctx,pycode,opts);
     if (lexer == NULL) {
         free(result);
         Py_DECREF(pycode);
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+        }
         return NULL;
     }
 
@@ -446,14 +469,49 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     Py_DECREF(pycode);
     if (result->_pyobj == NULL) {
         if (PyErr_Occurred()) {
-            PyErr_Print();
+            PyErr_Clear();
         }
 
         free(result);
         return NULL;
     }
 
-    result->html = PyString_AsString(result->_pyobj);
+    /* Convert result back to native string. Pygments typically returns a
+     * unicode object that needs to decoded properly.
+     */
+
+    if (PyObject_TypeCheck(result->_pyobj,&PyUnicode_Type)) {
+        PyObject* encoded = PyUnicode_AsUTF8String(result->_pyobj);
+        if (encoded == NULL) {
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+            }
+
+            free(result);
+            return NULL;
+
+            free(result);
+            return NULL;
+        }
+
+        Py_DECREF(result->_pyobj);
+        result->_pyobj = encoded;
+
+        /* NOTE: result->_pyobj should now be a bytes object. */
+    }
+
+    result->html = PyString_AS_STRING(result->_pyobj);
+    if (result->html == NULL) {
+        /* NOTE: PyString_AS_STRING() shouldn't return NULL, but we include this
+         * out of paranoia.
+         */
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+        }
+
+        free(result);
+        return NULL;
+    }
 
     return result;
 }
