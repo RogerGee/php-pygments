@@ -73,13 +73,16 @@ static void php_pygments_globals_dtor(zend_pygments_globals* gbls TSRMLS_DC)
 
 PHP_MINIT_FUNCTION(pygments)
 {
-    /* NOTE: this assumes python hasn't already been initialized somewhere else
-     * in PHP. We'll need a more sophisticated mechanism for deciding when to
-     * initialize/finalize (using Py_IsInitialized()).
+    /* NOTE: Since another module could be using libpython, we check the
+     * initialize state of libpython before attempting anything on it. This
+     * works so long as each module contractually behaves in this way.
      *
-     * We call Py_InitializeEx(0) to avoid registration of signal handlers.
+     * Also, we call Py_InitializeEx(0) to avoid registration of signal
+     * handlers.
      */
-    Py_InitializeEx(0);
+    if (!Py_IsInitialized()) {
+        Py_InitializeEx(0);
+    }
 
 #ifdef ZTS
     ts_allocate_id(&pygments_globals_id,
@@ -112,11 +115,13 @@ PHP_MSHUTDOWN_FUNCTION(pygments)
     php_pygments_globals_dtor(&pygments_globals TSRMLS_CC);
 #endif
 
-    /* NOTE: this assumes python hasn't already been finalized somewhere else in
-     * PHP. We'll need a more sophisticated mechanism for deciding when to
-     * initialize/finalize (using Py_IsInitialized()).
+    /* NOTE: Since another module could be using libpython, we check the
+     * initialize state of libpython before attempting anything on it. This
+     * works so long as each module contractually behaves in this way.
      */
-    Py_Finalize();
+    if (Py_IsInitialized()) {
+        Py_Finalize();
+    }
 
     return SUCCESS;
 }
@@ -129,6 +134,10 @@ PHP_RINIT_FUNCTION(pygments)
 
 PHP_RSHUTDOWN_FUNCTION(pygments)
 {
+    /* Reset the formatter options to their defaults so that each request starts
+     * out with that same state.
+     */
+    pygments_context_set_default_options(&PYGMENTS_G(highlighter));
 
     return SUCCESS;
 }
