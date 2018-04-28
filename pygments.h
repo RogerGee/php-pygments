@@ -14,6 +14,7 @@
 #endif
 
 #include <php.h>
+#include <ext/standard/info.h>
 #include "highlight.h"
 
 #ifdef ZTS

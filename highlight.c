@@ -107,6 +107,7 @@ static int zval_get_bool(zval* zv,const char* errctx,const char* optname)
     }
 
     php_error(E_ERROR,"%s: option '%s' must be a boolean",errctx,optname);
+    return 0;
 }
 
 static int zval_get_int(zval* zv,const char* errctx,const char* optname)
@@ -144,6 +145,7 @@ static const char* zval_get_string(zval* zv,const char* errctx,const char* optna
     }
 
     php_error(E_ERROR,"%s: option '%s' must be a string",errctx,optname);
+    return NULL;
 }
 
 static inline int set_python_attribute_bool(PyObject* inst,const char* attr,int value)
