@@ -33,39 +33,48 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     if (opts != NULL && opts->preferred_lexer != NULL) {
         PyObject* name = PyString_FromString(opts->preferred_lexer);
         if (name == NULL) {
+            PyErr_Clear();
             return NULL;
         }
 
         args = PyTuple_Pack(1,name);
         Py_DECREF(name);
         if (args == NULL) {
+            PyErr_Clear();
             return NULL;
         }
 
         lexer = PyObject_CallObject(ctx->func_get_lexer_by_name,args);
         Py_DECREF(args);
         if (lexer == NULL) {
+            PyErr_Clear();
             return NULL;
         }
     }
     else if (opts != NULL && opts->filename != NULL) {
         args = Py_BuildValue("(sO)",opts->filename,pycode);
         if (args == NULL) {
+            PyErr_Clear();
             return NULL;
         }
 
         lexer = PyObject_CallObject(ctx->func_guess_lexer_for_filename,args);
         Py_DECREF(args);
         if (lexer == NULL) {
+            PyErr_Clear();
+
             /* Fall back on guess_lexer if not found by filename. */
             args = Py_BuildValue("(O)",pycode);
             if (args == NULL) {
+                PyErr_Clear();
                 return NULL;
             }
 
             lexer = PyObject_CallObject(ctx->func_guess_lexer,args);
             Py_DECREF(args);
             if (lexer == NULL) {
+                PyErr_Print();
+                PyErr_Clear();
                 return NULL;
             }
         }
@@ -73,12 +82,14 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     else {
         args = Py_BuildValue("(O)",pycode);
         if (args == NULL) {
+            PyErr_Clear();
             return NULL;
         }
 
         lexer = PyObject_CallObject(ctx->func_guess_lexer,args);
         Py_DECREF(args);
         if (lexer == NULL) {
+            PyErr_Clear();
             return NULL;
         }
     }
@@ -160,6 +171,7 @@ static int set_python_attribute_int(PyObject* inst,const char* attr,int value)
 
     num = PyInt_FromLong((long)value);
     if (num == NULL) {
+        PyErr_Clear();
         return -1;
     }
 
@@ -176,18 +188,31 @@ static int set_python_attribute_string(PyObject* inst,const char* attr,const cha
 
     str = PyString_FromString(value);
     if (str == NULL) {
+        PyErr_Clear();
         return -1;
     }
 
     result = PyObject_SetAttrString(inst,attr,str);
     Py_DECREF(str);
 
+    if (result == -1) {
+        PyErr_Clear();
+        return -1;
+    }
+
     return result;
 }
 
 static inline int set_python_attribute_none(PyObject* inst,const char* attr,int delattr)
 {
-    return delattr ? PyObject_DelAttrString(inst,attr) : PyObject_SetAttrString(inst,attr,Py_None);
+    int result = delattr ? PyObject_DelAttrString(inst,attr) : PyObject_SetAttrString(inst,attr,Py_None);
+
+    if (result == -1) {
+        PyErr_Clear();
+        return -1;
+    }
+
+    return result;
 }
 
 int pygments_context_init(struct pygments_context* ctx)
@@ -202,17 +227,20 @@ int pygments_context_init(struct pygments_context* ctx)
 
     name = PyString_FromString("pygments");
     if (name == NULL) {
+        PyErr_Clear();
         return -1;
     }
 
     ctx->module_pygments = PyImport_Import(name);
     Py_DECREF(name);
     if (ctx->module_pygments == NULL) {
+        PyErr_Clear();
         return -1;
     }
 
     name = PyString_FromString("pygments.lexers");
     if (name == NULL) {
+        PyErr_Clear();
         pygments_context_close(ctx);
         return -1;
     }
@@ -220,12 +248,14 @@ int pygments_context_init(struct pygments_context* ctx)
     ctx->module_lexers = PyImport_Import(name);
     Py_DECREF(name);
     if (ctx->module_lexers == NULL) {
+        PyErr_Clear();
         pygments_context_close(ctx);
         return -1;
     }
 
     name = PyString_FromString("pygments.formatters");
     if (name == NULL) {
+        PyErr_Clear();
         pygments_context_close(ctx);
         return -1;
     }
@@ -233,6 +263,7 @@ int pygments_context_init(struct pygments_context* ctx)
     formatters_module = PyImport_Import(name);
     Py_DECREF(formatters_module);
     if (formatters_module == NULL) {
+        PyErr_Clear();
         pygments_context_close(ctx);
         return -1;
     }
@@ -241,6 +272,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     HtmlFormatter_class = PyObject_GetAttrString(formatters_module,"HtmlFormatter");
     if (HtmlFormatter_class == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         pygments_context_close(ctx);
         return -1;
@@ -248,6 +280,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     ctx->formatter = PyObject_CallObject(HtmlFormatter_class,NULL);
     if (ctx->formatter == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
         pygments_context_close(ctx);
@@ -256,6 +289,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     ctx->func_highlight = PyObject_GetAttrString(ctx->module_pygments,"highlight");
     if (ctx->func_highlight == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
         pygments_context_close(ctx);
@@ -264,6 +298,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     ctx->func_get_lexer_by_name = PyObject_GetAttrString(ctx->module_lexers,"get_lexer_by_name");
     if (ctx->func_get_lexer_by_name == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
         pygments_context_close(ctx);
@@ -273,6 +308,7 @@ int pygments_context_init(struct pygments_context* ctx)
     ctx->func_guess_lexer_for_filename = PyObject_GetAttrString(ctx->module_lexers,
         "guess_lexer_for_filename");
     if (ctx->func_guess_lexer_for_filename == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
         pygments_context_close(ctx);
@@ -281,6 +317,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     ctx->func_guess_lexer = PyObject_GetAttrString(ctx->module_lexers,"guess_lexer");
     if (ctx->func_guess_lexer == NULL) {
+        PyErr_Clear();
         Py_DECREF(formatters_module);
         Py_DECREF(HtmlFormatter_class);
         pygments_context_close(ctx);
@@ -446,6 +483,7 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     /* Convert source code string to Python string. */
     pycode = PyString_FromString(code);
     if (pycode == NULL) {
+        PyErr_Clear();
         free(result);
         return NULL;
     }
@@ -456,9 +494,6 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     if (lexer == NULL) {
         free(result);
         Py_DECREF(pycode);
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-        }
         return NULL;
     }
 
