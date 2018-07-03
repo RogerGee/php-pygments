@@ -24,7 +24,7 @@
 /* Extension definitions */
 
 #define PHP_PYGMENTS_EXTNAME "pygments"
-#define PHP_PYGMENTS_EXTVER "0.0.0"
+#define PHP_PYGMENTS_EXTVER "1.0.1"
 
 /* Module globals */
 

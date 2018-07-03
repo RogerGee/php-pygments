@@ -1,11 +1,14 @@
 php-pygments
 ============
 
+> Version `1.0.1`
+
 This project provides a PHP extension that wraps a subset of the pygments Python
 library, streamlining it for use in PHP userspace. It uses libpython to load an
 interpreter alongside the PHP process.
 
-This codebase currently supports PHP 5 but won't be too difficult to port to PHP 7.
+This codebase currently supports PHP 5; however it won't be too difficult to
+port to PHP 7.
 
 Primary author:
 
@@ -15,18 +18,17 @@ Design
 ------
 
 This extension works by embedding a Python interpreter inside PHP. This is
-accomplished using `libpython`. Currently we target `libpython2.7`, however
-upgrading to Python3 shouldn't be too hard. Currently only the
-`pygments.highlight` and `HtmlFormatter` class functionalities are wrapped since
-this was designed for dynamically generating syntax-highlighted code snippets as
-HTML.
+accomplished using `libpython`. Currently we target `libpython2.7`; however
+using Python3 should also work. Currently only the `pygments.highlight` and
+`HtmlFormatter` class functionalities are wrapped since this was designed for
+dynamically generating syntax-highlighted code snippets as HTML.
 
 The extension loads the required pygments modules at module initialization
 time. The extension maintains a global pygments context that is reused for each
 library call. This avoids having to load the pygments code for each
 request. Note, this only really provides any benefit if PHP is long-lived
 (meaning it doesn't call `MINIT` for each request but once for some sequence of
-requests). If ZTS is enabled, the module opens multiple contexts.
+requests). If ZTS is enabled, the module opens multiple contexts per thread.
 
 The global context maintains the state of several formatting options that can be
 configured from PHP userspace. The options are reset at the end of each request
@@ -69,7 +71,7 @@ you specify a lexer or, alternatively, a filename.
 _(Note: only specify at most one of the following parameters. They are meant to
 be used exclusively if at all.)_
 
-* `$lexer`: an optional lexer to force; do not `$filename` if you use this
+* `$lexer`: an optional lexer to force; do not use `$filename` if you use this
   parameter
 
 * `$filename`: the filename associated with the source code; Pygments will guess
@@ -81,6 +83,8 @@ Considerations
 --------------
 
 I have not tested the ZTS code yet. I'm not sure about libpython's thread safety
-either.
+either. Also, it may run inefficiently since PHP may create a context per thread
+instead of sharing a pool of context's between threads. More work needs to be
+done with ZTS to understand this.
 
 Use the [python valgrind suppression file](https://svn.python.org/projects/python/trunk/Misc/valgrind-python.supp) when testing for errors/memory leaks with valgrind.
