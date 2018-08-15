@@ -185,7 +185,6 @@ PHP_FUNCTION(pygments_highlight)
 PHP_FUNCTION(pygments_set_options)
 {
     zval* zopts;
-    struct pygments_context* ctx;
     struct context_options ctxopts;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(),"a",&zopts) == FAILURE) {

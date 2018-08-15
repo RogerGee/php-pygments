@@ -9,6 +9,8 @@
 #ifndef PHP_PYGMENTS_H
 #define PHP_PYGMENTS_H
 
+#include <Python.h>
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
