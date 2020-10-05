@@ -3,7 +3,7 @@
  *
  * This file is a part of php-pygments.
  *
- * Copyright (C) 2018 Roger P. Gee
+ * Copyright (C) Roger P. Gee
  */
 
 #include "pygments.h"
@@ -28,9 +28,7 @@ static zend_function_entry php_pygments_functions[] = {
 
 /* Module entries */
 zend_module_entry pygments_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
     STANDARD_MODULE_HEADER,
-#endif
     PHP_PYGMENTS_EXTNAME,
     php_pygments_functions,
     PHP_MINIT(pygments),
@@ -38,9 +36,7 @@ zend_module_entry pygments_module_entry = {
     PHP_RINIT(pygments),
     PHP_RSHUTDOWN(pygments),
     PHP_MINFO(pygments),
-#if ZEND_MODULE_API_NO >= 20010901
     PHP_PYGMENTS_EXTVER,
-#endif
     STANDARD_MODULE_PROPERTIES
 };
 

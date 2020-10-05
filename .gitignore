@@ -30,3 +30,5 @@ modules/
 *.o
 *.*~
 local/
+configure.ac
+*.loT
