@@ -97,10 +97,10 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     return lexer;
 }
 
-static int zval_get_bool(zval* zv,const char* errctx,const char* optname)
+static int zval_check_bool(zval* zv,const char* errctx,const char* optname)
 {
-    if (Z_TYPE_P(zv) == IS_BOOL) {
-        return Z_BVAL_P(zv);
+    if (Z_TYPE_P(zv) == IS_TRUE || Z_TYPE_P(zv) == IS_FALSE) {
+        return Z_TYPE_P(zv) == IS_TRUE;
     }
 
     if (Z_TYPE_P(zv) == IS_LONG) {
@@ -121,31 +121,24 @@ static int zval_get_bool(zval* zv,const char* errctx,const char* optname)
     return 0;
 }
 
-static int zval_get_int(zval* zv,const char* errctx,const char* optname)
+static int zval_check_int(zval* zv,const char* errctx,const char* optname)
 {
     if (Z_TYPE_P(zv) == IS_LONG) {
         return Z_LVAL_P(zv);
     }
 
-    if (Z_TYPE_P(zv) == IS_BOOL) {
-        return Z_BVAL_P(zv) ? 1 : 0;
+    if (Z_TYPE_P(zv) == IS_TRUE || Z_TYPE_P(zv) == IS_FALSE) {
+        return Z_TYPE_P(zv) == IS_TRUE ? 1 : 0;
     }
 
-    long val;
-    zval tmp = *zv;
-    zval_copy_ctor(&tmp);
-    convert_to_long(&tmp);
-    val = Z_LVAL(tmp);
-    zval_dtor(&tmp);
-
-    if (strcmp(Z_STRVAL_P(zv),"0") != 0 && val != 0) {
+    if (Z_TYPE_P(zv) != IS_STRING) {
         php_error(E_ERROR,"%s: option '%s' must be an integer",errctx,optname);
     }
 
-    return (int)val;
+    return (int)zval_get_long(zv);
 }
 
-static const char* zval_get_string(zval* zv,const char* errctx,const char* optname)
+static const char* zval_check_string(zval* zv,const char* errctx,const char* optname)
 {
     if (Z_TYPE_P(zv) == IS_NULL) {
         return NULL;
@@ -372,40 +365,49 @@ int pygments_context_close(struct pygments_context* ctx)
     return 0;
 }
 
-void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+void pygments_context_options_parse(struct context_options* dst,
+    zval* zfrom,
     const char* errctx)
 {
-    zval** zvp;
+    zval* zv;
     HashTable* ht;
 
     ht = Z_ARRVAL_P(zfrom);
     make_default_options(dst);
 
-    if (zend_hash_find(ht,"linenos",sizeof("linenos"),(void**)&zvp) != FAILURE) {
-        dst->linenos = zval_get_bool(*zvp,errctx,"linenos");
+    zv = zend_hash_str_find(ht,"linenos",sizeof("linenos")-1);
+    if (zv != NULL) {
+        dst->linenos = zval_check_bool(zv,errctx,"linenos");
     }
-    if (zend_hash_find(ht,"noclasses",sizeof("noclasses"),(void**)&zvp) != FAILURE) {
-        dst->noclasses = zval_get_bool(*zvp,errctx,"noclasses");
-    }
-
-    if (zend_hash_find(ht,"linenostart",sizeof("linenostart"),(void**)&zvp) != FAILURE) {
-        dst->linenostart = zval_get_int(*zvp,errctx,"linenostart");
+    zv = zend_hash_str_find(ht,"noclasses",sizeof("noclasses")-1);
+    if (zv != NULL) {
+        dst->noclasses = zval_check_bool(zv,errctx,"noclasses");
     }
 
-    if (zend_hash_find(ht,"lineanchors",sizeof("lineanchors"),(void**)&zvp) != FAILURE) {
-        dst->lineanchors = NULL2EMPTY( zval_get_string(*zvp,errctx,"lineanchors") );
+    zv = zend_hash_str_find(ht,"linenostart",sizeof("linenostart")-1);
+    if (zv != NULL) {
+        dst->linenostart = zval_check_int(zv,errctx,"linenostart");
     }
-    if (zend_hash_find(ht,"classprefix",sizeof("classprefix"),(void**)&zvp) != FAILURE) {
-        dst->classprefix = NULL2EMPTY( zval_get_string(*zvp,errctx,"classprefix") );
+
+    zv = zend_hash_str_find(ht,"lineanchors",sizeof("lineanchors")-1);
+    if (zv != NULL) {
+        dst->lineanchors = NULL2EMPTY( zval_check_string(zv,errctx,"lineanchors") );
     }
-    if (zend_hash_find(ht,"cssclass",sizeof("cssclass"),(void**)&zvp) != FAILURE) {
-        dst->cssclass = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssclass") );
+    zv = zend_hash_str_find(ht,"classprefix",sizeof("classprefix")-1);
+    if (zv != NULL) {
+        dst->classprefix = NULL2EMPTY( zval_check_string(zv,errctx,"classprefix") );
     }
-    if (zend_hash_find(ht,"cssstyles",sizeof("cssstyles"),(void**)&zvp) != FAILURE) {
-        dst->cssstyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssstyles") );
+    zv = zend_hash_str_find(ht,"cssclass",sizeof("cssclass")-1);
+    if (zv != NULL) {
+        dst->cssclass = NULL2EMPTY( zval_check_string(zv,errctx,"cssclass") );
     }
-    if (zend_hash_find(ht,"prestyles",sizeof("prestyles"),(void**)&zvp) != FAILURE) {
-        dst->prestyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"prestyles") );
+    zv = zend_hash_str_find(ht,"cssstyles",sizeof("cssstyles")-1);
+    if (zv != NULL) {
+        dst->cssstyles = NULL2EMPTY( zval_check_string(zv,errctx,"cssstyles") );
+    }
+    zv = zend_hash_str_find(ht,"prestyles",sizeof("prestyles")-1);
+    if (zv != NULL) {
+        dst->prestyles = NULL2EMPTY( zval_check_string(zv,errctx,"prestyles") );
     }
 }
 

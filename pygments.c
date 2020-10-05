@@ -145,11 +145,11 @@ PHP_RSHUTDOWN_FUNCTION(pygments)
 PHP_FUNCTION(pygments_highlight)
 {
     char* code;
-    int code_len;
+    size_t code_len;
     char* preferredLexer = NULL;
-    int preferredLexer_len = 0;
+    size_t preferredLexer_len = 0;
     char* filename = NULL;
-    int filename_len = 0;
+    size_t filename_len = 0;
     struct lexer_options lxopts;
     struct highlight_result* result;
 
@@ -171,7 +171,7 @@ PHP_FUNCTION(pygments_highlight)
         /* Control no longer in function. */
     }
 
-    RETVAL_STRING(result->html,1);
+    RETVAL_STRING(result->html);
     highlight_result_free(result);
 }
 /* }}} */
