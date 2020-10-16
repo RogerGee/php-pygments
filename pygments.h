@@ -17,6 +17,7 @@
 
 #include <php.h>
 #include <ext/standard/info.h>
+#include <Zend/zend_exceptions.h>
 #include "highlight.h"
 
 #ifdef ZTS

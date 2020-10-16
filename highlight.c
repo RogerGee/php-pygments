@@ -365,6 +365,11 @@ int pygments_context_close(struct pygments_context* ctx)
     return 0;
 }
 
+int pygments_context_check(struct pygments_context* ctx)
+{
+    return ctx->module_pygments != NULL && ctx->func_highlight != NULL;
+}
+
 void pygments_context_options_parse(struct context_options* dst,
     zval* zfrom,
     const char* errctx)

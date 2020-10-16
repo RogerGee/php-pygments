@@ -133,7 +133,9 @@ PHP_RSHUTDOWN_FUNCTION(pygments)
     /* Reset the formatter options to their defaults so that each request starts
      * out with that same state.
      */
-    pygments_context_set_default_options(&PYGMENTS_G(highlighter));
+    if (pygments_context_check(&PYGMENTS_G(highlighter))) {
+        pygments_context_set_default_options(&PYGMENTS_G(highlighter));
+    }
 
     return SUCCESS;
 }
@@ -152,6 +154,11 @@ PHP_FUNCTION(pygments_highlight)
     size_t filename_len = 0;
     struct lexer_options lxopts;
     struct highlight_result* result;
+
+    if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
+        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        return;
+    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(),"s|s!s!",&code,&code_len,
             &preferredLexer,&preferredLexer_len,&filename,&filename_len) == FAILURE)
@@ -182,6 +189,11 @@ PHP_FUNCTION(pygments_set_options)
 {
     zval* zopts;
     struct context_options ctxopts;
+
+    if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
+        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        return;
+    }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(),"a",&zopts) == FAILURE) {
         return;
