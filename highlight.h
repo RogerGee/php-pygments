@@ -136,7 +136,8 @@ int pygments_context_check(struct pygments_context* ctx);
 /* Parse the context options from the specified zval. An E_ERROR will be issued
  * if parsing fails.
  */
-void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+int pygments_context_options_parse(struct context_options* dst,
+    zval* zfrom,
     const char* errctx);
 
 /* Assigns the specified options to the context's formatter instance. */

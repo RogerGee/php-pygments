@@ -206,7 +206,10 @@ PHP_FUNCTION(pygments_set_options)
         return;
     }
 
-    pygments_context_options_parse(&ctxopts,zopts,"pygments_highlight");
+    if (pygments_context_options_parse(&ctxopts,zopts,"pygments_highlight") == FAILURE) {
+        return;
+    }
+
     pygments_context_assign_options(&PYGMENTS_G(highlighter),&ctxopts);
 }
 /* }}} */
