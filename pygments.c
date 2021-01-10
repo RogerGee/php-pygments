@@ -47,7 +47,7 @@ ZEND_GET_MODULE(pygments)
 /* Define module globals. */
 ZEND_DECLARE_MODULE_GLOBALS(pygments);
 
-static void php_pygments_globals_ctor(zend_pygments_globals* gbls TSRMLS_DC)
+static void php_pygments_globals_ctor(zend_pygments_globals* gbls)
 {
     int result = pygments_context_init(&gbls->highlighter);
 
@@ -56,7 +56,7 @@ static void php_pygments_globals_ctor(zend_pygments_globals* gbls TSRMLS_DC)
     }
 }
 
-static void php_pygments_globals_dtor(zend_pygments_globals* gbls TSRMLS_DC)
+static void php_pygments_globals_dtor(zend_pygments_globals* gbls)
 {
     int result = pygments_context_close(&gbls->highlighter);
 
@@ -86,7 +86,7 @@ PHP_MINIT_FUNCTION(pygments)
         (ts_allocate_ctor)php_pygments_globals_ctor,
         (ts_allocate_dtor)php_pygments_globals_dtor);
 #else
-    php_pygments_globals_ctor(&pygments_globals TSRMLS_CC);
+    php_pygments_globals_ctor(&pygments_globals);
 #endif
 
     return SUCCESS;
@@ -160,8 +160,15 @@ PHP_FUNCTION(pygments_highlight)
         return;
     }
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(),"s|s!s!",&code,&code_len,
-            &preferredLexer,&preferredLexer_len,&filename,&filename_len) == FAILURE)
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(),
+            "s|s!s",
+            &code,
+            &code_len,
+            &preferredLexer,
+            &preferredLexer_len,
+            &filename,
+            &filename_len) == FAILURE)
     {
         return;
     }
