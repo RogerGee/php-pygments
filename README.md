@@ -1,7 +1,5 @@
 # php-pygments
 
-**Note: This is the php5 branch. Support for php5 is now deprecated.**
-
 This project provides a PHP extension that wraps a subset of the `pygments` Python library, streamlining it for use in PHP userspace. It uses `libpython` to load an interpreter alongside the PHP process.
 
 ## Design

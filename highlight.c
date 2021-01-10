@@ -3,7 +3,7 @@
  *
  * This file is a part of php-pygments.
  *
- * Copyright (C) 2018 Roger P. Gee
+ * Copyright (C) Roger P. Gee
  */
 
 #include "highlight.h"
@@ -97,66 +97,72 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     return lexer;
 }
 
-static int zval_get_bool(zval* zv,const char* errctx,const char* optname)
+static int zval_check_bool(int* result,zval* zv,const char* errctx,const char* optname)
 {
-    if (Z_TYPE_P(zv) == IS_BOOL) {
-        return Z_BVAL_P(zv);
+    if (Z_TYPE_P(zv) == IS_TRUE || Z_TYPE_P(zv) == IS_FALSE) {
+        *result = Z_TYPE_P(zv) == IS_TRUE;
+        return SUCCESS;
     }
 
     if (Z_TYPE_P(zv) == IS_LONG) {
-        return Z_LVAL_P(zv) ? 1 : 0;
+        *result = Z_LVAL_P(zv) ? 1 : 0;
+        return SUCCESS;
     }
 
     if (Z_TYPE_P(zv) == IS_STRING) {
         const char* str = Z_STRVAL_P(zv);
         if (strcasecmp(str,"false") == 0) {
-            return 0;
+            *result = 0;
+            return SUCCESS;
         }
         if (strcasecmp(str,"true") == 0) {
-            return 1;
+            *result = 1;
+            return SUCCESS;
         }
     }
 
-    php_error(E_ERROR,"%s: option '%s' must be a boolean",errctx,optname);
-    return 0;
+    zend_throw_error(NULL,"%s: option '%s' must be a boolean",errctx,optname);
+    return FAILURE;
 }
 
-static int zval_get_int(zval* zv,const char* errctx,const char* optname)
+static int zval_check_int(int* result,zval* zv,const char* errctx,const char* optname)
 {
     if (Z_TYPE_P(zv) == IS_LONG) {
-        return Z_LVAL_P(zv);
+        *result = Z_LVAL_P(zv);
+        return SUCCESS;
     }
 
-    if (Z_TYPE_P(zv) == IS_BOOL) {
-        return Z_BVAL_P(zv) ? 1 : 0;
+    if (Z_TYPE_P(zv) == IS_TRUE || Z_TYPE_P(zv) == IS_FALSE) {
+        *result = Z_TYPE_P(zv) == IS_TRUE ? 1 : 0;
+        return SUCCESS;
     }
 
-    long val;
-    zval tmp = *zv;
-    zval_copy_ctor(&tmp);
-    convert_to_long(&tmp);
-    val = Z_LVAL(tmp);
-    zval_dtor(&tmp);
-
-    if (strcmp(Z_STRVAL_P(zv),"0") != 0 && val != 0) {
-        php_error(E_ERROR,"%s: option '%s' must be an integer",errctx,optname);
+    if (Z_TYPE_P(zv) != IS_STRING) {
+        zend_throw_error(NULL,"%s: option '%s' must be an integer",errctx,optname);
+        return FAILURE;
     }
 
-    return (int)val;
+    return (int)zval_get_long(zv);
 }
 
-static const char* zval_get_string(zval* zv,const char* errctx,const char* optname)
+static int zval_check_string(
+    const char** result,
+    zval* zv,
+    const char* errctx,
+    const char* optname)
 {
     if (Z_TYPE_P(zv) == IS_NULL) {
-        return NULL;
+        *result = "";
+        return SUCCESS;
     }
 
     if (Z_TYPE_P(zv) == IS_STRING) {
-        return Z_STRVAL_P(zv);
+        *result = Z_STRVAL_P(zv);
+        return SUCCESS;
     }
 
-    php_error(E_ERROR,"%s: option '%s' must be a string",errctx,optname);
-    return NULL;
+    zend_throw_error(NULL,"%s: option '%s' must be a string",errctx,optname);
+    return FAILURE;
 }
 
 static inline int set_python_attribute_bool(PyObject* inst,const char* attr,int value)
@@ -205,7 +211,8 @@ static int set_python_attribute_string(PyObject* inst,const char* attr,const cha
 
 static inline int set_python_attribute_none(PyObject* inst,const char* attr,int delattr)
 {
-    int result = delattr ? PyObject_DelAttrString(inst,attr) : PyObject_SetAttrString(inst,attr,Py_None);
+    int result = delattr ? PyObject_DelAttrString(inst,attr)
+        : PyObject_SetAttrString(inst,attr,Py_None);
 
     if (result == -1) {
         PyErr_Clear();
@@ -372,41 +379,72 @@ int pygments_context_close(struct pygments_context* ctx)
     return 0;
 }
 
-void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+int pygments_context_check(struct pygments_context* ctx)
+{
+    return ctx->module_pygments != NULL && ctx->func_highlight != NULL;
+}
+
+int pygments_context_options_parse(struct context_options* dst,
+    zval* zfrom,
     const char* errctx)
 {
-    zval** zvp;
+    zval* zv;
     HashTable* ht;
 
     ht = Z_ARRVAL_P(zfrom);
     make_default_options(dst);
 
-    if (zend_hash_find(ht,"linenos",sizeof("linenos"),(void**)&zvp) != FAILURE) {
-        dst->linenos = zval_get_bool(*zvp,errctx,"linenos");
-    }
-    if (zend_hash_find(ht,"noclasses",sizeof("noclasses"),(void**)&zvp) != FAILURE) {
-        dst->noclasses = zval_get_bool(*zvp,errctx,"noclasses");
+    zv = zend_hash_str_find(ht,"linenos",sizeof("linenos")-1);
+    if (zv != NULL && zval_check_bool(&dst->linenos,zv,errctx,"linenos") == FAILURE) {
+        return FAILURE;
     }
 
-    if (zend_hash_find(ht,"linenostart",sizeof("linenostart"),(void**)&zvp) != FAILURE) {
-        dst->linenostart = zval_get_int(*zvp,errctx,"linenostart");
+    zv = zend_hash_str_find(ht,"noclasses",sizeof("noclasses")-1);
+    if (zv != NULL && zval_check_bool(&dst->noclasses,zv,errctx,"noclasses") == FAILURE) {
+        return FAILURE;
     }
 
-    if (zend_hash_find(ht,"lineanchors",sizeof("lineanchors"),(void**)&zvp) != FAILURE) {
-        dst->lineanchors = NULL2EMPTY( zval_get_string(*zvp,errctx,"lineanchors") );
+    zv = zend_hash_str_find(ht,"linenostart",sizeof("linenostart")-1);
+    if (zv != NULL && zval_check_int(&dst->linenostart,zv,errctx,"linenostart")) {
+        return FAILURE;
     }
-    if (zend_hash_find(ht,"classprefix",sizeof("classprefix"),(void**)&zvp) != FAILURE) {
-        dst->classprefix = NULL2EMPTY( zval_get_string(*zvp,errctx,"classprefix") );
+
+    zv = zend_hash_str_find(ht,"lineanchors",sizeof("lineanchors")-1);
+    if (zv != NULL
+        && zval_check_string(&dst->lineanchors,zv,errctx,"lineanchors") == FAILURE)
+    {
+        return FAILURE;
     }
-    if (zend_hash_find(ht,"cssclass",sizeof("cssclass"),(void**)&zvp) != FAILURE) {
-        dst->cssclass = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssclass") );
+
+    zv = zend_hash_str_find(ht,"classprefix",sizeof("classprefix")-1);
+    if (zv != NULL
+        && zval_check_string(&dst->classprefix,zv,errctx,"classprefix") == FAILURE)
+    {
+        return FAILURE;
     }
-    if (zend_hash_find(ht,"cssstyles",sizeof("cssstyles"),(void**)&zvp) != FAILURE) {
-        dst->cssstyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"cssstyles") );
+
+    zv = zend_hash_str_find(ht,"cssclass",sizeof("cssclass")-1);
+    if (zv != NULL
+        && zval_check_string(&dst->cssclass,zv,errctx,"cssclass") == FAILURE)
+    {
+        return FAILURE;
     }
-    if (zend_hash_find(ht,"prestyles",sizeof("prestyles"),(void**)&zvp) != FAILURE) {
-        dst->prestyles = NULL2EMPTY( zval_get_string(*zvp,errctx,"prestyles") );
+
+    zv = zend_hash_str_find(ht,"cssstyles",sizeof("cssstyles")-1);
+    if (zv != NULL
+        && zval_check_string(&dst->cssstyles,zv,errctx,"cssstyles") == FAILURE)
+    {
+        return FAILURE;
     }
+
+    zv = zend_hash_str_find(ht,"prestyles",sizeof("prestyles")-1);
+    if (zv != NULL
+        && zval_check_string(&dst->prestyles,zv,errctx,"prestyles") == FAILURE)
+    {
+        return FAILURE;
+    }
+
+    return SUCCESS;
 }
 
 int pygments_context_assign_options(struct pygments_context* ctx,

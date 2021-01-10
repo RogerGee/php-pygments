@@ -3,7 +3,7 @@
  *
  * This file is a part of php-pygments.
  *
- * Copyright (C) 2018 Roger P. Gee
+ * Copyright (C) Roger P. Gee
  */
 
 #ifndef PHP_PYGMENTS_H
@@ -17,6 +17,7 @@
 
 #include <php.h>
 #include <ext/standard/info.h>
+#include <Zend/zend_exceptions.h>
 #include "highlight.h"
 
 #ifdef ZTS

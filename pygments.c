@@ -3,7 +3,7 @@
  *
  * This file is a part of php-pygments.
  *
- * Copyright (C) 2018 Roger P. Gee
+ * Copyright (C) Roger P. Gee
  */
 
 #include "pygments.h"
@@ -28,9 +28,7 @@ static zend_function_entry php_pygments_functions[] = {
 
 /* Module entries */
 zend_module_entry pygments_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
     STANDARD_MODULE_HEADER,
-#endif
     PHP_PYGMENTS_EXTNAME,
     php_pygments_functions,
     PHP_MINIT(pygments),
@@ -38,9 +36,7 @@ zend_module_entry pygments_module_entry = {
     PHP_RINIT(pygments),
     PHP_RSHUTDOWN(pygments),
     PHP_MINFO(pygments),
-#if ZEND_MODULE_API_NO >= 20010901
     PHP_PYGMENTS_EXTVER,
-#endif
     STANDARD_MODULE_PROPERTIES
 };
 
@@ -51,7 +47,7 @@ ZEND_GET_MODULE(pygments)
 /* Define module globals. */
 ZEND_DECLARE_MODULE_GLOBALS(pygments);
 
-static void php_pygments_globals_ctor(zend_pygments_globals* gbls TSRMLS_DC)
+static void php_pygments_globals_ctor(zend_pygments_globals* gbls)
 {
     int result = pygments_context_init(&gbls->highlighter);
 
@@ -60,7 +56,7 @@ static void php_pygments_globals_ctor(zend_pygments_globals* gbls TSRMLS_DC)
     }
 }
 
-static void php_pygments_globals_dtor(zend_pygments_globals* gbls TSRMLS_DC)
+static void php_pygments_globals_dtor(zend_pygments_globals* gbls)
 {
     int result = pygments_context_close(&gbls->highlighter);
 
@@ -90,7 +86,7 @@ PHP_MINIT_FUNCTION(pygments)
         (ts_allocate_ctor)php_pygments_globals_ctor,
         (ts_allocate_dtor)php_pygments_globals_dtor);
 #else
-    php_pygments_globals_ctor(&pygments_globals TSRMLS_CC);
+    php_pygments_globals_ctor(&pygments_globals);
 #endif
 
     return SUCCESS;
@@ -137,7 +133,9 @@ PHP_RSHUTDOWN_FUNCTION(pygments)
     /* Reset the formatter options to their defaults so that each request starts
      * out with that same state.
      */
-    pygments_context_set_default_options(&PYGMENTS_G(highlighter));
+    if (pygments_context_check(&PYGMENTS_G(highlighter))) {
+        pygments_context_set_default_options(&PYGMENTS_G(highlighter));
+    }
 
     return SUCCESS;
 }
@@ -149,16 +147,28 @@ PHP_RSHUTDOWN_FUNCTION(pygments)
 PHP_FUNCTION(pygments_highlight)
 {
     char* code;
-    int code_len;
+    size_t code_len;
     char* preferredLexer = NULL;
-    int preferredLexer_len = 0;
+    size_t preferredLexer_len = 0;
     char* filename = NULL;
-    int filename_len = 0;
+    size_t filename_len = 0;
     struct lexer_options lxopts;
     struct highlight_result* result;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(),"s|s!s!",&code,&code_len,
-            &preferredLexer,&preferredLexer_len,&filename,&filename_len) == FAILURE)
+    if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
+        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        return;
+    }
+
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(),
+            "s|s!s",
+            &code,
+            &code_len,
+            &preferredLexer,
+            &preferredLexer_len,
+            &filename,
+            &filename_len) == FAILURE)
     {
         return;
     }
@@ -175,7 +185,7 @@ PHP_FUNCTION(pygments_highlight)
         /* Control no longer in function. */
     }
 
-    RETVAL_STRING(result->html,1);
+    RETVAL_STRING(result->html);
     highlight_result_free(result);
 }
 /* }}} */
@@ -187,11 +197,19 @@ PHP_FUNCTION(pygments_set_options)
     zval* zopts;
     struct context_options ctxopts;
 
+    if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
+        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        return;
+    }
+
     if (zend_parse_parameters(ZEND_NUM_ARGS(),"a",&zopts) == FAILURE) {
         return;
     }
 
-    pygments_context_options_parse(&ctxopts,zopts,"pygments_highlight");
+    if (pygments_context_options_parse(&ctxopts,zopts,"pygments_highlight") == FAILURE) {
+        return;
+    }
+
     pygments_context_assign_options(&PYGMENTS_G(highlighter),&ctxopts);
 }
 /* }}} */

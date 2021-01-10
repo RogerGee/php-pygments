@@ -3,7 +3,7 @@
  *
  * This file is a part of php-pygments.
  *
- * Copyright (C) 2018 Roger P. Gee
+ * Copyright (C) Roger P. Gee
  */
 
 #ifndef HIGHLIGHT_H
@@ -130,10 +130,14 @@ int pygments_context_init(struct pygments_context* ctx);
 /* Frees the context's members. The context cannot be used after this call. */
 int pygments_context_close(struct pygments_context* ctx);
 
+/* Determines if the context is valid. */
+int pygments_context_check(struct pygments_context* ctx);
+
 /* Parse the context options from the specified zval. An E_ERROR will be issued
  * if parsing fails.
  */
-void pygments_context_options_parse(struct context_options* dst,zval* zfrom,
+int pygments_context_options_parse(struct context_options* dst,
+    zval* zfrom,
     const char* errctx);
 
 /* Assigns the specified options to the context's formatter instance. */
