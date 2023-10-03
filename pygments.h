@@ -1,7 +1,7 @@
 /*
  * pygments.h
  *
- * This file is a part of php-pygments.
+ * php-pygments
  *
  * Copyright (C) Roger P. Gee
  */
@@ -27,7 +27,7 @@
 /* Extension definitions */
 
 #define PHP_PYGMENTS_EXTNAME "pygments"
-#define PHP_PYGMENTS_EXTVER "1.0.1"
+#define PHP_PYGMENTS_EXTVER "1.0.0"
 
 /* Module globals */
 

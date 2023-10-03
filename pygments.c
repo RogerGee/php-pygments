@@ -1,7 +1,7 @@
 /*
  * pygments.c
  *
- * This file is a part of php-pygments.
+ * php-pygments
  *
  * Copyright (C) Roger P. Gee
  */
@@ -108,7 +108,7 @@ PHP_MSHUTDOWN_FUNCTION(pygments)
      * automatically. We must do this before shutting down python.
      */
 #ifndef ZTS
-    php_pygments_globals_dtor(&pygments_globals TSRMLS_CC);
+    php_pygments_globals_dtor(&pygments_globals);
 #endif
 
     /* NOTE: Since another module could be using libpython, we check the
@@ -156,7 +156,7 @@ PHP_FUNCTION(pygments_highlight)
     struct highlight_result* result;
 
     if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
-        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        zend_throw_exception(NULL,"Pygments library is not loaded",0);
         return;
     }
 
@@ -198,7 +198,7 @@ PHP_FUNCTION(pygments_set_options)
     struct context_options ctxopts;
 
     if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
-        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        zend_throw_exception(NULL,"Pygments library is not loaded",0);
         return;
     }
 

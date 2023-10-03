@@ -1,7 +1,7 @@
 /*
  * highlight.c
  *
- * This file is a part of php-pygments.
+ * php-pygments
  *
  * Copyright (C) Roger P. Gee
  */
