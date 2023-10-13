@@ -1,12 +1,17 @@
 /*
  * pygments.c
  *
- * This file is a part of php-pygments.
+ * php-pygments
  *
  * Copyright (C) Roger P. Gee
  */
 
 #include "pygments.h"
+#include "pygments_arginfo.h"
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+#define MAKE_VERSION(a,b,c) STR(a) "." STR(b) "." STR(c)
 
 /* Module/request functions */
 static PHP_MINIT_FUNCTION(pygments);
@@ -21,8 +26,8 @@ static PHP_FUNCTION(pygments_set_options);
 
 /* Function entries */
 static zend_function_entry php_pygments_functions[] = {
-    PHP_FE(pygments_highlight,NULL)
-    PHP_FE(pygments_set_options,NULL)
+    PHP_FE(pygments_highlight,arginfo_pygments_highlight)
+    PHP_FE(pygments_set_options,arginfo_pygments_set_options)
     {NULL, NULL, NULL}
 };
 
@@ -97,6 +102,11 @@ PHP_MINFO_FUNCTION(pygments)
     php_info_print_table_start();
     php_info_print_table_row(2,PHP_PYGMENTS_EXTNAME,"enabled");
     php_info_print_table_row(2,"extension version",PHP_PYGMENTS_EXTVER);
+    php_info_print_table_row(
+        2,
+        "embedded Python version",
+        MAKE_VERSION(PY_MAJOR_VERSION,PY_MINOR_VERSION,PY_MICRO_VERSION)
+        );
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -108,7 +118,7 @@ PHP_MSHUTDOWN_FUNCTION(pygments)
      * automatically. We must do this before shutting down python.
      */
 #ifndef ZTS
-    php_pygments_globals_dtor(&pygments_globals TSRMLS_CC);
+    php_pygments_globals_dtor(&pygments_globals);
 #endif
 
     /* NOTE: Since another module could be using libpython, we check the
@@ -156,7 +166,7 @@ PHP_FUNCTION(pygments_highlight)
     struct highlight_result* result;
 
     if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
-        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        zend_throw_exception(NULL,"Pygments library is not loaded",0);
         return;
     }
 
@@ -198,7 +208,7 @@ PHP_FUNCTION(pygments_set_options)
     struct context_options ctxopts;
 
     if (!pygments_context_check(&PYGMENTS_G(highlighter))) {
-        zend_throw_exception(NULL,"Pygments library is not loaded",0 TSRMLS_CC);
+        zend_throw_exception(NULL,"Pygments library is not loaded",0);
         return;
     }
 
