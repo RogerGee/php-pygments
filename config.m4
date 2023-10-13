@@ -15,7 +15,7 @@ if test $PHP_PYGMENTS != "no"; then
         PHP_SUBST([EXTRA_LDFLAGS])
     fi
 
-    PHP_ADD_LIBRARY(python3,1,PYGMENTS_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(python$MODVERSION,1,PYGMENTS_SHARED_LIBADD)
     PHP_SUBST(PYGMENTS_SHARED_LIBADD)
     PHP_NEW_EXTENSION(pygments,pygments.c highlight.c,$ext_shared)
 fi
