@@ -27,7 +27,7 @@
 /* Extension definitions */
 
 #define PHP_PYGMENTS_EXTNAME "pygments"
-#define PHP_PYGMENTS_EXTVER "1.0.0-dev-php8"
+#define PHP_PYGMENTS_EXTVER "1.0.0"
 
 /* Module globals */
 
