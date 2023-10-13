@@ -31,7 +31,7 @@ static PyObject* lookup_lexer(const struct pygments_context* ctx,
     PyObject* args;
 
     if (opts != NULL && opts->preferred_lexer != NULL) {
-        PyObject* name = PyString_FromString(opts->preferred_lexer);
+        PyObject* name = PyUnicode_FromString(opts->preferred_lexer);
         if (name == NULL) {
             PyErr_Clear();
             return NULL;
@@ -175,7 +175,7 @@ static int set_python_attribute_int(PyObject* inst,const char* attr,int value)
     int result;
     PyObject* num;
 
-    num = PyInt_FromLong((long)value);
+    num = PyLong_FromLong((long)value);
     if (num == NULL) {
         PyErr_Clear();
         return -1;
@@ -192,7 +192,7 @@ static int set_python_attribute_string(PyObject* inst,const char* attr,const cha
     int result;
     PyObject* str;
 
-    str = PyString_FromString(value);
+    str = PyUnicode_FromString(value);
     if (str == NULL) {
         PyErr_Clear();
         return -1;
@@ -232,7 +232,7 @@ int pygments_context_init(struct pygments_context* ctx)
 
     /* Import modules. */
 
-    name = PyString_FromString("pygments");
+    name = PyUnicode_FromString("pygments");
     if (name == NULL) {
         PyErr_Clear();
         return -1;
@@ -245,7 +245,7 @@ int pygments_context_init(struct pygments_context* ctx)
         return -1;
     }
 
-    name = PyString_FromString("pygments.lexers");
+    name = PyUnicode_FromString("pygments.lexers");
     if (name == NULL) {
         PyErr_Clear();
         pygments_context_close(ctx);
@@ -260,7 +260,7 @@ int pygments_context_init(struct pygments_context* ctx)
         return -1;
     }
 
-    name = PyString_FromString("pygments.formatters");
+    name = PyUnicode_FromString("pygments.formatters");
     if (name == NULL) {
         PyErr_Clear();
         pygments_context_close(ctx);
@@ -519,7 +519,7 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
     memset(result,0,sizeof(struct highlight_result));
 
     /* Convert source code string to Python string. */
-    pycode = PyString_FromString(code);
+    pycode = PyUnicode_FromString(code);
     if (pycode == NULL) {
         PyErr_Clear();
         free(result);
@@ -551,31 +551,7 @@ struct highlight_result* highlight(const struct pygments_context* ctx,const char
         return NULL;
     }
 
-    /* Convert result back to native string. Pygments typically returns a
-     * unicode object that needs to decoded properly.
-     */
-
-    if (PyObject_TypeCheck(result->_pyobj,&PyUnicode_Type)) {
-        PyObject* encoded = PyUnicode_AsUTF8String(result->_pyobj);
-        if (encoded == NULL) {
-            if (PyErr_Occurred()) {
-                PyErr_Clear();
-            }
-
-            free(result);
-            return NULL;
-
-            free(result);
-            return NULL;
-        }
-
-        Py_DECREF(result->_pyobj);
-        result->_pyobj = encoded;
-
-        /* NOTE: result->_pyobj should now be a bytes object. */
-    }
-
-    result->html = PyString_AS_STRING(result->_pyobj);
+    result->html = PyUnicode_AsUTF8(result->_pyobj);
     if (result->html == NULL) {
         /* NOTE: PyString_AS_STRING() shouldn't return NULL, but we include this
          * out of paranoia.
