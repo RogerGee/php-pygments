@@ -7,6 +7,7 @@
  */
 
 #include "pygments.h"
+#include "pygments_arginfo.h"
 
 /* Module/request functions */
 static PHP_MINIT_FUNCTION(pygments);
@@ -21,8 +22,8 @@ static PHP_FUNCTION(pygments_set_options);
 
 /* Function entries */
 static zend_function_entry php_pygments_functions[] = {
-    PHP_FE(pygments_highlight,NULL)
-    PHP_FE(pygments_set_options,NULL)
+    PHP_FE(pygments_highlight,arginfo_pygments_highlight)
+    PHP_FE(pygments_set_options,arginfo_pygments_set_options)
     {NULL, NULL, NULL}
 };
 
