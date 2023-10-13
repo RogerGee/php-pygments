@@ -9,6 +9,10 @@
 #include "pygments.h"
 #include "pygments_arginfo.h"
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+#define MAKE_VERSION(a,b,c) STR(a) "." STR(b) "." STR(c)
+
 /* Module/request functions */
 static PHP_MINIT_FUNCTION(pygments);
 static PHP_MINFO_FUNCTION(pygments);
@@ -98,6 +102,11 @@ PHP_MINFO_FUNCTION(pygments)
     php_info_print_table_start();
     php_info_print_table_row(2,PHP_PYGMENTS_EXTNAME,"enabled");
     php_info_print_table_row(2,"extension version",PHP_PYGMENTS_EXTVER);
+    php_info_print_table_row(
+        2,
+        "embedded Python version",
+        MAKE_VERSION(PY_MAJOR_VERSION,PY_MINOR_VERSION,PY_MICRO_VERSION)
+        );
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
